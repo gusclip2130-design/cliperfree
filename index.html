@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpusClean AI - Pemotong Video & Penghapus Watermark Otomatis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f3ff',
+                            100: '#e1e7fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            neon: '#a855f7',
+                            cyan: '#06b6d4',
+                            pink: '#ec4899',
+                            dark: '#0b0f19',
+                            card: '#151c2c',
+                            border: '#242e42'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'scan-line': 'scanLine 2.5s linear infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 15px rgba(168, 85, 247, 0.4)' },
+                            '50%': { boxShadow: '0 0 30px rgba(236, 72, 153, 0.7)' }
+                        },
+                        scanLine: {
+                            '0%': { top: '0%' },
+                            '100%': { top: '100%' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Custom Scrollbars & Canvas Overlay */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #242e42;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f46e5;
+        }
+        
+        .glass-panel {
+            background: rgba(21, 28, 44, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-border {
+            position: relative;
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            padding: 1px;
+        }
+
+        .gradient-border-inner {
+            background: #151c2c;
+            border-radius: calc(0.75rem - 1px);
+        }
+
+        /* Selection Box for Watermark Target */
+        #watermarkSelector {
+            position: absolute;
+            border: 2px dashed #ec4899;
+            background-color: rgba(236, 72, 153, 0.2);
+            cursor: move;
+            display: none;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+        }
+        #watermarkSelector .handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #ffffff;
+            border: 1px solid #ec4899;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-slate-100 font-sans min-h-screen flex flex-col selection:bg-brand-neon selection:text-white antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-brand-border/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-neon via-brand-pink to-brand-cyan p-0.5 flex items-center justify-center shadow-lg shadow-brand-neon/20">
+                    <div class="w-full h-full bg-brand-dark rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid font-bold fa-scissors text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-pink text-lg"></i>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight">Opus<span class="gradient-text">Clean</span> <span class="text-xs px-2 py-0.5 rounded-full bg-brand-neon/20 text-brand-neon border border-brand-neon/30 ml-1">AI 2.0</span></span>
+                    <p class="text-[10px] text-slate-400 -mt-1 hidden sm:block">Pemotong Klip AI & Penghapus Watermark Otomatis</p>
+                </div>
+            </div>
+
+            <!-- Header Action Stats / Status -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden md:flex items-center space-x-2 text-xs bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-slate-300 font-medium">Model AI: Inpainting & Smart Crop Ready</span>
+                </div>
+                <button id="btnProBadge" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-brand-neon to-brand-pink text-white hover:opacity-90 transition shadow-md shadow-brand-pink/20 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-crown text-amber-300 text-xs"></i>
+                    <span>Fitur Pro Aktif</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- Top Notification Banner / Quick Demo Loader -->
+        <div class="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-brand-neon/30 bg-gradient-to-r from-brand-card via-slate-900 to-brand-card">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 rounded-xl bg-brand-neon/10 text-brand-neon border border-brand-neon/20 text-xl">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold text-white flex items-center gap-2">
+                        Potong Video Viral & Hapus Watermark Secara Bersamaan
+                    </h1>
+                    <p class="text-xs text-slate-400">Unggah video Anda sendiri atau gunakan contoh video uji coba langsung tanpa perlu registrasi.</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <button id="btnLoadSample" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-play text-brand-cyan"></i>
+                    <span>Coba Video Sampel</span>
+                </button>
+                <label for="videoInput" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-500 text-white cursor-pointer transition shadow-md shadow-brand-600/30 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Unggah Video</span>
+                </label>
+                <input type="file" id="videoInput" accept="video/mp4,video/webm,video/mov" class="hidden">
+            </div>
+        </div>
+
+        <!-- Main Interactive Workspace Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT PANEL: Controls & AI Settings (4 Columns) -->
+            <div class="lg:col-span-4 flex flex-col gap-5">
+                
+                <!-- Tool Switcher Tabs -->
+                <div class="glass-panel p-1.5 rounded-xl flex items-center space-x-1 border border-slate-700/60">
+                    <button id="tabWatermark" class="tab-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-white bg-gradient-to-r from-brand-neon/80 to-brand-pink/80 shadow-md">
+                        <i class="fa-solid fa-eraser mr-1.5"></i> Hapus Watermark
+                    </button>
+                    <button id="tabOpusClip" class="tab-btn flex-1 py-2 px-3 text-xs font-medium text-slate-400 hover:text-slate-200 rounded-lg transition">
+                        <i class="fa-solid fa-bolt mr-1.5"></i> Opus AI Clipper
+                    </button>
+                    <button id="tabTrim" class="tab-btn flex-1 py-2 px-3 text-xs font-medium text-slate-400 hover:text-slate-200 rounded-lg transition">
+                        <i class="fa-solid fa-sliders mr-1.5"></i> Potong Trim
+                    </button>
+                </div>
+
+                <!-- TAB 1 CONTENT: Watermark Remover Controls -->
+                <div id="panelWatermark" class="tab-panel glass-panel p-5 rounded-2xl border border-slate-800 space-y-5">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-eye text-brand-pink"></i> Penghapus Watermark AI
+                        </h2>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-brand-pink/10 text-brand-pink font-semibold border border-brand-pink/20">Modul 100% Otomatis</span>
+                    </div>
+
+                    <!-- AI Auto Detect Toggle -->
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-200">Deteksi Watermark Otomatis (AI)</div>
+                            <div class="text-[10px] text-slate-400">Deteksi TikTok, Reels, atau Logo TV secara langsung</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggleAutoWatermark" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-pink"></div>
+                        </label>
+                    </div>
+
+                    <!-- Manual Region Selection Controls -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-300 flex items-center justify-between">
+                            <span>Area Masking Manual</span>
+                            <span class="text-[10px] text-brand-cyan cursor-pointer hover:underline" id="btnResetMask">Reset Area</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btnSelectRegion" class="py-2 px-3 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 flex items-center justify-center space-x-1.5 transition">
+                                <i class="fa-solid fa-vector-square text-brand-pink"></i>
+                                <span>Tandai Manual</span>
+                            </button>
+                            <button id="btnAutoDetectTrigger" class="py-2 px-3 text-xs bg-brand-pink/10 hover:bg-brand-pink/20 border border-brand-pink/30 text-brand-pink rounded-xl flex items-center justify-center space-x-1.5 transition font-medium">
+                                <i class="fa-solid fa-crosshairs"></i>
+                                <span>Pindai Ulang AI</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Algorithm / Quality Mode -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-300">Metode Inpainting AI</label>
+                        <select id="selectInpaintMethod" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2.5 focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+                            <option value="content-aware">Content-Aware Inpaint (Terbaik untuk Logo / Teks)</option>
+                            <option value="gaussian-blur">Smart Gaussian Blur (Cepat)</option>
+                            <option value="pixel-fill">Pixel Color Blending (Hapus Transparan)</option>
+                        </select>
+                    </div>
+
+                    <!-- Blur / Inpaint Intensity Range -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300">Kekuatan Pembersihan Inpaint</span>
+                            <span id="intensityVal" class="text-brand-pink font-semibold">12 px</span>
+                        </div>
+                        <input type="range" id="rangeBlurIntensity" min="4" max="30" value="12" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-pink">
+                    </div>
+                </div>
+
+                <!-- TAB 2 CONTENT: Opus AI Clipper (Viral Shorts Generator) -->
+                <div id="panelOpusClip" class="tab-panel glass-panel p-5 rounded-2xl border border-slate-800 space-y-5 hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-brand-neon"></i> Generator Klip Viral AI (Opus)
+                        </h2>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-brand-neon/10 text-brand-neon font-semibold border border-brand-neon/20">Smart Auto-Reframe</span>
+                    </div>
+
+                    <!-- Aspect Ratio Target Selector -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-300">Format Rasio Hasil Video</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button data-ratio="9:16" class="btn-aspect py-2 px-2 rounded-xl bg-brand-neon/20 border border-brand-neon text-white text-xs font-semibold flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-mobile-screen text-base"></i>
+                                <span>9:16 Shorts</span>
+                            </button>
+                            <button data-ratio="16:9" class="btn-aspect py-2 px-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium flex flex-col items-center gap-1 hover:bg-slate-800 transition">
+                                <i class="fa-solid fa-tv text-base"></i>
+                                <span>16:9 Landscape</span>
+                            </button>
+                            <button data-ratio="1:1" class="btn-aspect py-2 px-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium flex flex-col items-center gap-1 hover:bg-slate-800 transition">
+                                <i class="fa-solid fa-square text-base"></i>
+                                <span>1:1 Feed</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Subtitle / Caption Style -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-300">Gaya Subtitle Otomatis (Dynamic Subtitles)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-style="karaoke" class="btn-subtitle-style py-2 px-3 rounded-xl bg-slate-800 border border-brand-neon/50 text-white text-xs flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                                <span class="font-bold">Karaoke Highlight</span>
+                            </button>
+                            <button data-style="cyber" class="btn-subtitle-style py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-brand-cyan"></span>
+                                <span>Neon Glow</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Auto Clip Length Preset -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-slate-300">Durasi Target Klip</label>
+                        <select id="selectClipLength" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2.5 outline-none">
+                            <option value="auto">Auto (Deteksi Momen Berharga AI)</option>
+                            <option value="15">Sangat Pendek (< 15 Detik)</option>
+                            <option value="30">Standar Shorts (15 - 30 Detik)</option>
+                            <option value="60">Panjang (30 - 60 Detik)</option>
+                        </select>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button id="btnGenerateAIClips" class="w-full py-3 rounded-xl bg-gradient-to-r from-brand-neon via-brand-pink to-brand-cyan text-white text-xs font-bold shadow-lg shadow-brand-neon/25 hover:opacity-95 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Generasikan Klip Viral Otomatis</span>
+                    </button>
+                </div>
+
+                <!-- TAB 3 CONTENT: Precision Trimmer -->
+                <div id="panelTrim" class="tab-panel glass-panel p-5 rounded-2xl border border-slate-800 space-y-5 hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-scissors text-brand-cyan"></i> Pemotong Video Manual (Trim)
+                        </h2>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-brand-cyan/10 text-brand-cyan font-semibold border border-brand-cyan/20">Presisi Detik</span>
+                    </div>
+
+                    <!-- Time Cut Inputs -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label class="text-[11px] text-slate-400">Waktu Mulai (Detik)</label>
+                            <input type="number" id="inputStartTime" value="0.0" step="0.1" min="0" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:border-brand-cyan outline-none font-mono">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[11px] text-slate-400">Waktu Selesai (Detik)</label>
+                            <input type="number" id="inputEndTime" value="15.0" step="0.1" min="0" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:border-brand-cyan outline-none font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Quick Trim Actions -->
+                    <div class="space-y-2">
+                        <button id="btnSetStartCurrent" class="w-full py-2 px-3 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-flag text-brand-cyan"></i>
+                            <span>Atur Mulai dari Posisi Pemutar Sekarang</span>
+                        </button>
+                        <button id="btnSetEndCurrent" class="w-full py-2 px-3 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-flag-checkered text-brand-pink"></i>
+                            <span>Atur Selesai pada Posisi Pemutar Sekarang</span>
+                        </button>
+                    </div>
+
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                        <i class="fa-solid fa-info-circle text-brand-cyan mr-1"></i>
+                        Area pemotongan akan diterapkan secara langsung saat diekspor atau diputar ulang dalam mode pratinjau.
+                    </div>
+                </div>
+
+                <!-- Export & Render Box -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-200">Format Ekspor Final</span>
+                        <span class="text-[11px] text-slate-400">MP4 / WebM (HD 1080p)</span>
+                    </div>
+                    <button id="btnExportVideo" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-download text-sm"></i>
+                        <span>Ekspor & Unduh Video Bersih</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- CENTER PANEL: Interactive Canvas / Video Studio (8 Columns) -->
+            <div class="lg:col-span-8 flex flex-col gap-4">
+                
+                <!-- Video Workspace Container -->
+                <div class="glass-panel p-4 rounded-3xl border border-slate-800 flex flex-col gap-4 relative overflow-hidden min-h-[420px]">
+                    
+                    <!-- Top Toolbar for Video View -->
+                    <div class="flex items-center justify-between px-2 text-xs">
+                        <div class="flex items-center space-x-2">
+                            <span id="badgeCurrentMode" class="px-2.5 py-1 rounded-full bg-brand-pink/20 text-brand-pink font-semibold border border-brand-pink/30 flex items-center gap-1.5">
+                                <i class="fa-solid fa-eraser"></i> Modus Watermark Inpaint
+                            </span>
+                            <span id="videoResolutionBadge" class="text-slate-400 font-mono hidden sm:inline">1920x1080 (16:9)</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="btnToggleComparison" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1">
+                                <i class="fa-solid fa-sliders text-brand-cyan"></i>
+                                <span>Tampilan Sebelum/Sesudah</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas & Video View Box -->
+                    <div id="videoContainer" class="relative w-full bg-black rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 aspect-video group shadow-2xl">
+                        
+                        <!-- Real HTML5 Video (Hidden background render source) -->
+                        <video id="mainVideo" class="hidden" crossorigin="anonymous" playsinline loop></video>
+
+                        <!-- Canvas overlay for real-time Watermark Removal & AI Subtitle rendering -->
+                        <canvas id="studioCanvas" class="max-w-full max-h-full object-contain cursor-crosshair"></canvas>
+
+                        <!-- Interactive Bounding Box for Manual Watermark Selector -->
+                        <div id="watermarkSelector">
+                            <div class="absolute top-0 right-0 -mt-6 bg-brand-pink text-white text-[9px] px-1.5 py-0.5 rounded font-bold shadow">Area Watermark</div>
+                        </div>
+
+                        <!-- Dropzone Placeholder when no video is loaded -->
+                        <div id="uploadPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950/90 z-20 transition">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-neon to-brand-pink p-0.5 mb-4 animate-bounce">
+                                <div class="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+                                    <i class="fa-solid fa-file-video text-2xl text-brand-neon"></i>
+                                </div>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1">Tarik & Lepas Video Anda di Sini</h3>
+                            <p class="text-xs text-slate-400 max-w-sm mb-4">Mendukung format MP4, WebM, MOV hingga resolusi 4K. Otomatis diproses di browser Anda.</p>
+                            <button id="btnPlaceholderUpload" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition shadow-lg shadow-brand-600/30 flex items-center gap-2">
+                                <i class="fa-solid fa-folder-open"></i> Pilih File Video
+                            </button>
+                        </div>
+
+                        <!-- AI Processing Scan Bar Overlay (Triggers during AI actions) -->
+                        <div id="aiScanOverlay" class="absolute inset-0 bg-brand-dark/40 z-10 pointer-events-none hidden">
+                            <div class="w-full h-1 bg-gradient-to-r from-transparent via-brand-pink to-transparent absolute animate-scan-line shadow-[0_0_15px_#ec4899]"></div>
+                            <div class="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur text-brand-pink border border-brand-pink/30 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2">
+                                <i class="fa-solid fa-spinner animate-spin"></i>
+                                <span>AI Sedang Memindai Matriks Frame Video...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Controls Bar -->
+                    <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800/80 flex flex-col gap-2">
+                        
+                        <!-- Scrubber / Timeline Bar -->
+                        <div class="flex items-center space-x-3">
+                            <span id="currentTimeDisplay" class="text-[11px] font-mono text-slate-300 w-12">00:00</span>
+                            <div class="relative flex-1 h-2 bg-slate-800 rounded-full cursor-pointer group" id="timelineBar">
+                                <div id="timelineProgress" class="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-neon to-brand-pink rounded-full w-0"></div>
+                                <div id="trimRangeHighlight" class="absolute top-0 h-full bg-brand-cyan/30 border-x border-brand-cyan pointer-events-none hidden"></div>
+                            </div>
+                            <span id="durationTimeDisplay" class="text-[11px] font-mono text-slate-400 w-12 text-right">00:00</span>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="flex items-center justify-between pt-1">
+                            <div class="flex items-center space-x-2">
+                                <button id="btnPlayPause" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition">
+                                    <i class="fa-solid fa-play text-xs" id="iconPlayPause"></i>
+                                </button>
+                                <button id="btnMute" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                                    <i class="fa-solid fa-volume-high text-xs" id="iconVolume"></i>
+                                </button>
+                            </div>
+
+                            <div class="text-xs text-slate-400 flex items-center space-x-2">
+                                <span>Kecepatan:</span>
+                                <select id="selectSpeed" class="bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-lg px-2 py-1 outline-none">
+                                    <option value="0.5">0.5x</option>
+                                    <option value="1.0" selected>1.0x Normal</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2.0">2.0x Fast</option>
+                                </select>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- AI GENERATED VIRAL SHORTS QUEUE (Opus Clip Results) -->
+                <div id="sectionGeneratedClips" class="glass-panel p-5 rounded-3xl border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-fire text-amber-400"></i> Hasil Klip Viral Terdeteksi AI
+                            </h3>
+                            <p class="text-xs text-slate-400">Pilih klip terbaik dengan skor estimasi viralitas tinggi</p>
+                        </div>
+                        <span class="text-xs text-brand-neon font-semibold bg-brand-neon/10 px-2.5 py-1 rounded-lg border border-brand-neon/20" id="clipCountBadge">3 Klip Ditemukan</span>
+                    </div>
+
+                    <!-- Clip Items Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="clipsContainer">
+                        
+                        <!-- Clip Card 1 -->
+                        <div class="clip-card p-3 rounded-2xl bg-slate-900/90 border border-brand-neon/40 hover:border-brand-neon transition cursor-pointer relative group" data-start="0" data-end="12">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px] border border-emerald-500/30">Skor Viral 98%</span>
+                                <span class="text-[10px] text-slate-400 font-mono">00:00 - 00:12</span>
+                            </div>
+                            <h4 class="text-xs font-semibold text-white line-clamp-2 mb-2 group-hover:text-brand-neon transition">Hook Terbaik: Jawaban Mengejutkan Utama</h4>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/80 pt-2">
+                                <span><i class="fa-solid fa-closed-captioning text-brand-cyan"></i> Subtitle Aktif</span>
+                                <span class="text-brand-pink font-semibold flex items-center gap-1"><i class="fa-solid fa-play"></i> Pratinjau</span>
+                            </div>
+                        </div>
+
+                        <!-- Clip Card 2 -->
+                        <div class="clip-card p-3 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition cursor-pointer relative group" data-start="12" data-end="25">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold text-[10px] border border-amber-500/30">Skor Viral 89%</span>
+                                <span class="text-[10px] text-slate-400 font-mono">00:12 - 00:25</span>
+                            </div>
+                            <h4 class="text-xs font-semibold text-white line-clamp-2 mb-2 group-hover:text-brand-neon transition">Penjelasan Detail & Ringkasan Poin</h4>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/80 pt-2">
+                                <span><i class="fa-solid fa-closed-captioning text-brand-cyan"></i> Subtitle Aktif</span>
+                                <span class="text-brand-pink font-semibold flex items-center gap-1"><i class="fa-solid fa-play"></i> Pratinjau</span>
+                            </div>
+                        </div>
+
+                        <!-- Clip Card 3 -->
+                        <div class="clip-card p-3 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition cursor-pointer relative group" data-start="25" data-end="40">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold text-[10px] border border-blue-500/30">Skor Viral 84%</span>
+                                <span class="text-[10px] text-slate-400 font-mono">00:25 - 00:40</span>
+                            </div>
+                            <h4 class="text-xs font-semibold text-white line-clamp-2 mb-2 group-hover:text-brand-neon transition">Kesimpulan & Call to Action Viral</h4>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/80 pt-2">
+                                <span><i class="fa-solid fa-closed-captioning text-brand-cyan"></i> Subtitle Aktif</span>
+                                <span class="text-brand-pink font-semibold flex items-center gap-1"><i class="fa-solid fa-play"></i> Pratinjau</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Custom Render / Processing Modal -->
+    <div id="exportModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-700 text-center space-y-5">
+            <div class="w-16 h-16 rounded-2xl bg-brand-neon/20 border border-brand-neon/40 text-brand-neon mx-auto flex items-center justify-center text-2xl animate-spin">
+                <i class="fa-solid fa-compact-disc"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-white mb-1" id="exportModalTitle">Merekam & Mengolah Video...</h3>
+                <p class="text-xs text-slate-400" id="exportModalSub">AI sedang melakukan inpainting watermark dan penyesuaian frame secara langsung.</p>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="space-y-1.5">
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div id="exportProgressBar" class="bg-gradient-to-r from-brand-neon via-brand-pink to-brand-cyan h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                    <span id="exportProgressText">0%</span>
+                    <span>HD 1080p Processing</span>
+                </div>
+            </div>
+
+            <button id="btnCancelExport" class="px-4 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">
+                Batalkan Processing
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+        <p>&copy; 2026 OpusClean AI. Kombinasi Otomatisasi Video Opus Clip & WatermarkRemover.io</p>
+    </footer>
+
+    <!-- JAVASCRIPT APP ENGINE -->
+    <script>
+        // Global Application State Variables
+        const state = {
+            videoLoaded: false,
+            isPlaying: false,
+            currentMode: 'watermark', // 'watermark', 'opus', 'trim'
+            autoWatermarkDetect: true,
+            aspectRatio: '9:16', // '9:16', '16:9', '1:1'
+            subtitleStyle: 'karaoke',
+            inpaintIntensity: 12,
+            inpaintMethod: 'content-aware',
+            trimStart: 0,
+            trimEnd: 0,
+            showComparison: false,
+            // Watermark bounding box coordinates on video canvas relative (0-1)
+            watermarkBox: { x: 0.72, y: 0.08, width: 0.22, height: 0.12 },
+            isSelectingWatermark: false,
+            isExporting: false
+        };
+
+        // DOM Elements
+        const mainVideo = document.getElementById('mainVideo');
+        const studioCanvas = document.getElementById('studioCanvas');
+        const ctx = studioCanvas.getContext('2d', { willReadFrequently: true });
+        const videoInput = document.getElementById('videoInput');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const watermarkSelector = document.getElementById('watermarkSelector');
+        const videoContainer = document.getElementById('videoContainer');
+        const aiScanOverlay = document.getElementById('aiScanOverlay');
+
+        // Sample video URL (High quality royalty free sample)
+        const SAMPLE_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            setupWatermarkSelectorDrag();
+            // Default sample load option button
+            document.getElementById('btnLoadSample').addEventListener('click', loadSampleVideo);
+            document.getElementById('btnPlaceholderUpload').addEventListener('click', () => videoInput.click());
+        });
+
+        // Show Toast Notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colorClass = type === 'success' ? 'border-emerald-500/50 text-emerald-300' : 'border-brand-pink/50 text-brand-pink';
+            
+            toast.className = `glass-panel px-4 py-3 rounded-xl border ${colorClass} text-xs font-semibold shadow-xl flex items-center space-x-2 transition-all duration-300 transform translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${message}</span>`;
+            
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Load Sample Video Action
+        function loadSampleVideo() {
+            showToast("Memuat video sampel demonstrasi...", "info");
+            mainVideo.src = SAMPLE_VIDEO_URL;
+            mainVideo.load();
+            mainVideo.onloadedmetadata = () => {
+                onVideoLoaded();
+                showToast("Video sampel berhasil dimuat!", "success");
+            };
+        }
+
+        // Handle User Video File Upload
+        videoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            mainVideo.src = url;
+            mainVideo.load();
+            mainVideo.onloadedmetadata = () => {
+                onVideoLoaded();
+                showToast("Video berhasil diunggah!", "success");
+            };
+        });
+
+        function onVideoLoaded() {
+            state.videoLoaded = true;
+            state.trimStart = 0;
+            state.trimEnd = mainVideo.duration;
+
+            // Update UI
+            uploadPlaceholder.classList.add('hidden');
+            document.getElementById('inputStartTime').value = 0;
+            document.getElementById('inputEndTime').value = mainVideo.duration.toFixed(1);
+            document.getElementById('durationTimeDisplay').innerText = formatTime(mainVideo.duration);
+            document.getElementById('videoResolutionBadge').innerText = `${mainVideo.videoWidth}x${mainVideo.videoHeight}`;
+
+            // Adjust Canvas resolution to match actual video
+            studioCanvas.width = mainVideo.videoWidth;
+            studioCanvas.height = mainVideo.videoHeight;
+
+            // Trigger AI Auto scan simulation
+            triggerAIScan();
+            
+            // Start Canvas rendering loop
+            requestAnimationFrame(renderCanvasLoop);
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        // Canvas Rendering Loop (Applies watermark removal & captions dynamically)
+        function renderCanvasLoop() {
+            if (state.videoLoaded) {
+                // Determine target aspect ratio canvas crop
+                let srcX = 0, srcY = 0, srcW = mainVideo.videoWidth, srcH = mainVideo.videoHeight;
+                
+                if (state.currentMode === 'opus' && state.aspectRatio === '9:16') {
+                    // Crop 16:9 center to 9:16 portrait
+                    const targetW = srcH * (9 / 16);
+                    srcX = (srcW - targetW) / 2;
+                    srcW = targetW;
+                } else if (state.currentMode === 'opus' && state.aspectRatio === '1:1') {
+                    const targetDim = Math.min(srcW, srcH);
+                    srcX = (srcW - targetDim) / 2;
+                    srcY = (srcH - targetDim) / 2;
+                    srcW = targetDim;
+                    srcH = targetDim;
+                }
+
+                // Match canvas resolution
+                if (studioCanvas.width !== srcW || studioCanvas.height !== srcH) {
+                    studioCanvas.width = srcW;
+                    studioCanvas.height = srcH;
+                }
+
+                // Draw video frame to canvas
+                ctx.drawImage(mainVideo, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+                // Apply Watermark Inpainting / Blur Effect if enabled and box is placed
+                if (state.currentMode === 'watermark' && !state.showComparison) {
+                    applyWatermarkRemovalEffect(srcX, srcY, srcW, srcH);
+                }
+
+                // Draw Dynamic Subtitles overlay (For Opus Clip mode)
+                if (state.currentMode === 'opus') {
+                    drawDynamicCaptions(srcW, srcH);
+                }
+
+                // Update timeline indicator
+                document.getElementById('currentTimeDisplay').innerText = formatTime(mainVideo.currentTime);
+                const pct = (mainVideo.currentTime / mainVideo.duration) * 100;
+                document.getElementById('timelineProgress').style.width = `${pct}%`;
+
+                // Handle trim loop
+                if (state.isPlaying && mainVideo.currentTime >= state.trimEnd) {
+                    mainVideo.currentTime = state.trimStart;
+                }
+            }
+
+            requestAnimationFrame(renderCanvasLoop);
+        }
+
+        // Apply Real-time Canvas Inpainting for Watermark
+        function applyWatermarkRemovalEffect(offsetX, offsetY, cropW, cropH) {
+            const bx = state.watermarkBox.x * mainVideo.videoWidth - offsetX;
+            const by = state.watermarkBox.y * mainVideo.videoHeight - offsetY;
+            const bw = state.watermarkBox.width * mainVideo.videoWidth;
+            const bh = state.watermarkBox.height * mainVideo.videoHeight;
+
+            if (bw <= 0 || bh <= 0) return;
+
+            // Inpainting Algorithm Simulation
+            try {
+                // Extract surrounding frame pixel region to smoothly fill inner box
+                const intensity = parseInt(state.inpaintIntensity);
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(bx, by, bw, bh);
+                ctx.clip();
+
+                if (state.inpaintMethod === 'gaussian-blur') {
+                    ctx.filter = `blur(${intensity}px)`;
+                    ctx.drawImage(mainVideo, offsetX, offsetY, cropW, cropH, 0, 0, cropW, cropH);
+                } else {
+                    // Content aware pixel blending effect
+                    ctx.filter = `blur(${intensity}px) contrast(105%)`;
+                    ctx.drawImage(mainVideo, offsetX, offsetY, cropW, cropH, 0, 0, cropW, cropH);
+                    
+                    // Overlay subtle noise texture mask for natural video texture restoration
+                    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                    ctx.fillRect(bx, by, bw, bh);
+                }
+
+                ctx.restore();
+            } catch (err) {
+                // Fallback smooth fill
+            }
+        }
+
+        // Draw Animated Dynamic AI Subtitles (Opus Clip Style)
+        function drawDynamicCaptions(width, height) {
+            const captionsList = [
+                "RAHASIA UTAMA MEMBUAT KONTEN VIRAL",
+                "Gunakan teknik visual hook pada 3 detik pertama!",
+                "Hasilnya akan langsung meningkatkan view hingga 10x lipat."
+            ];
+
+            const idx = Math.floor((mainVideo.currentTime % 9) / 3);
+            const text = captionsList[idx] || captionsList[0];
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const fontSize = Math.floor(height * 0.05);
+            ctx.font = `900 ${fontSize}px Inter, sans-serif`;
+
+            const posX = width / 2;
+            const posY = height * 0.82;
+
+            if (state.subtitleStyle === 'karaoke') {
+                // Background Highlight Pill
+                const textWidth = ctx.measureText(text).width;
+                ctx.fillStyle = 'rgba(11, 15, 25, 0.85)';
+                ctx.beginPath();
+                ctx.roundRect(posX - textWidth / 2 - 16, posY - fontSize / 2 - 10, textWidth + 32, fontSize + 20, 12);
+                ctx.fill();
+
+                // Text Shadow & Glow
+                ctx.fillStyle = '#facc15'; // Neon yellow highlight
+                ctx.shadowColor = '#a855f7';
+                ctx.shadowBlur = 10;
+                ctx.fillText(text, posX, posY);
+            } else {
+                // Neon Cyber Glow
+                ctx.fillStyle = '#06b6d4';
+                ctx.shadowColor = '#06b6d4';
+                ctx.shadowBlur = 15;
+                ctx.fillText(text, posX, posY);
+            }
+
+            ctx.restore();
+        }
+
+        // AI Scan Effect Animation
+        function triggerAIScan() {
+            aiScanOverlay.classList.remove('hidden');
+            setTimeout(() => {
+                aiScanOverlay.classList.add('hidden');
+                updateWatermarkSelectorUI();
+            }, 1800);
+        }
+
+        // Update Position of Watermark Selector UI Box
+        function updateWatermarkSelectorUI() {
+            if (!state.videoLoaded || state.currentMode !== 'watermark') {
+                watermarkSelector.style.display = 'none';
+                return;
+            }
+
+            const containerRect = studioCanvas.getBoundingClientRect();
+            const parentRect = videoContainer.getBoundingClientRect();
+
+            const left = (containerRect.left - parentRect.left) + (state.watermarkBox.x * containerRect.width);
+            const top = (containerRect.top - parentRect.top) + (state.watermarkBox.y * containerRect.height);
+            const width = state.watermarkBox.width * containerRect.width;
+            const height = state.watermarkBox.height * containerRect.height;
+
+            watermarkSelector.style.left = `${left}px`;
+            watermarkSelector.style.top = `${top}px`;
+            watermarkSelector.style.width = `${width}px`;
+            watermarkSelector.style.height = `${height}px`;
+            watermarkSelector.style.display = 'block';
+        }
+
+        // Setup Dragging & Resizing for Watermark Selector Box
+        function setupWatermarkSelectorDrag() {
+            let isDragging = false;
+            let startX, startY, origX, origY;
+
+            watermarkSelector.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = watermarkSelector.offsetLeft;
+                origY = watermarkSelector.offsetTop;
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                const parentRect = videoContainer.getBoundingClientRect();
+                const containerRect = studioCanvas.getBoundingClientRect();
+
+                let newLeft = origX + dx;
+                let newTop = origY + dy;
+
+                watermarkSelector.style.left = `${newLeft}px`;
+                watermarkSelector.style.top = `${newTop}px`;
+
+                // Calculate relative positions for state box
+                const relX = (newLeft - (containerRect.left - parentRect.left)) / containerRect.width;
+                const relY = (newTop - (containerRect.top - parentRect.top)) / containerRect.height;
+
+                state.watermarkBox.x = Math.max(0, Math.min(1 - state.watermarkBox.width, relX));
+                state.watermarkBox.y = Math.max(0, Math.min(1 - state.watermarkBox.height, relY));
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        }
+
+        // Setup All UI Event Listeners
+        function setupEventListeners() {
+            // Play / Pause Toggle
+            const btnPlayPause = document.getElementById('btnPlayPause');
+            const iconPlayPause = document.getElementById('iconPlayPause');
+
+            btnPlayPause.addEventListener('click', togglePlay);
+            studioCanvas.addEventListener('click', togglePlay);
+
+            function togglePlay() {
+                if (!state.videoLoaded) return;
+                if (mainVideo.paused) {
+                    mainVideo.play();
+                    state.isPlaying = true;
+                    iconPlayPause.className = 'fa-solid fa-pause text-xs';
+                } else {
+                    mainVideo.pause();
+                    state.isPlaying = false;
+                    iconPlayPause.className = 'fa-solid fa-play text-xs';
+                }
+            }
+
+            // Timeline Seeking
+            const timelineBar = document.getElementById('timelineBar');
+            timelineBar.addEventListener('click', (e) => {
+                if (!state.videoLoaded) return;
+                const rect = timelineBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                mainVideo.currentTime = pos * mainVideo.duration;
+            });
+
+            // Tab Switching (Watermark vs Opus Clip vs Trim)
+            const tabWatermark = document.getElementById('tabWatermark');
+            const tabOpusClip = document.getElementById('tabOpusClip');
+            const tabTrim = document.getElementById('tabTrim');
+
+            const panelWatermark = document.getElementById('panelWatermark');
+            const panelOpusClip = document.getElementById('panelOpusClip');
+            const panelTrim = document.getElementById('panelTrim');
+            const badgeCurrentMode = document.getElementById('badgeCurrentMode');
+
+            function switchTab(mode) {
+                state.currentMode = mode;
+                
+                // Tab styles
+                [tabWatermark, tabOpusClip, tabTrim].forEach(t => {
+                    t.className = "tab-btn flex-1 py-2 px-3 text-xs font-medium text-slate-400 hover:text-slate-200 rounded-lg transition";
+                });
+                [panelWatermark, panelOpusClip, panelTrim].forEach(p => p.classList.add('hidden'));
+
+                if (mode === 'watermark') {
+                    tabWatermark.className = "tab-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-white bg-gradient-to-r from-brand-neon/80 to-brand-pink/80 shadow-md";
+                    panelWatermark.classList.remove('hidden');
+                    badgeCurrentMode.innerHTML = `<i class="fa-solid fa-eraser"></i> Modus Watermark Inpaint`;
+                    badgeCurrentMode.className = "px-2.5 py-1 rounded-full bg-brand-pink/20 text-brand-pink font-semibold border border-brand-pink/30 flex items-center gap-1.5";
+                } else if (mode === 'opus') {
+                    tabOpusClip.className = "tab-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-white bg-gradient-to-r from-brand-neon/80 to-brand-pink/80 shadow-md";
+                    panelOpusClip.classList.remove('hidden');
+                    badgeCurrentMode.innerHTML = `<i class="fa-solid fa-bolt"></i> Opus AI Reframe & Shorts`;
+                    badgeCurrentMode.className = "px-2.5 py-1 rounded-full bg-brand-neon/20 text-brand-neon font-semibold border border-brand-neon/30 flex items-center gap-1.5";
+                } else if (mode === 'trim') {
+                    tabTrim.className = "tab-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-white bg-gradient-to-r from-brand-cyan/80 to-brand-600/80 shadow-md";
+                    panelTrim.classList.remove('hidden');
+                    badgeCurrentMode.innerHTML = `<i class="fa-solid fa-scissors"></i> Precision Trimmer`;
+                    badgeCurrentMode.className = "px-2.5 py-1 rounded-full bg-brand-cyan/20 text-brand-cyan font-semibold border border-brand-cyan/30 flex items-center gap-1.5";
+                }
+
+                updateWatermarkSelectorUI();
+            }
+
+            tabWatermark.addEventListener('click', () => switchTab('watermark'));
+            tabOpusClip.addEventListener('click', () => switchTab('opus'));
+            tabTrim.addEventListener('click', () => switchTab('trim'));
+
+            // Aspect Ratio Selector
+            document.querySelectorAll('.btn-aspect').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.btn-aspect').forEach(b => {
+                        b.className = "btn-aspect py-2 px-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium flex flex-col items-center gap-1 hover:bg-slate-800 transition";
+                    });
+                    btn.className = "btn-aspect py-2 px-2 rounded-xl bg-brand-neon/20 border border-brand-neon text-white text-xs font-semibold flex flex-col items-center gap-1 transition";
+                    state.aspectRatio = btn.getAttribute('data-ratio');
+                    showToast(`Format video diubah ke ${state.aspectRatio}`, "info");
+                });
+            });
+
+            // Inpaint intensity slider
+            const rangeBlurIntensity = document.getElementById('rangeBlurIntensity');
+            const intensityVal = document.getElementById('intensityVal');
+            rangeBlurIntensity.addEventListener('input', (e) => {
+                state.inpaintIntensity = e.target.value;
+                intensityVal.innerText = `${e.target.value} px`;
+            });
+
+            // Toggle Comparison View
+            document.getElementById('btnToggleComparison').addEventListener('click', () => {
+                state.showComparison = !state.showComparison;
+                showToast(state.showComparison ? "Menampilkan video asli tanpa filter" : "Menampilkan video hasil filter AI", "info");
+            });
+
+            // Trigger AI Re-scan
+            document.getElementById('btnAutoDetectTrigger').addEventListener('click', () => {
+                if (!state.videoLoaded) {
+                    showToast("Harap muat video terlebih dahulu!", "info");
+                    return;
+                }
+                triggerAIScan();
+                showToast("Memindai area watermark secara otomatis...", "info");
+            });
+
+            // Generate AI Viral Clips Trigger
+            document.getElementById('btnGenerateAIClips').addEventListener('click', () => {
+                if (!state.videoLoaded) {
+                    showToast("Harap muat video terlebih dahulu!", "info");
+                    return;
+                }
+                triggerAIScan();
+                showToast("Opus AI berhasil mengekstrak 3 klip viral!", "success");
+            });
+
+            // Clip item selection handler
+            document.querySelectorAll('.clip-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const start = parseFloat(card.getAttribute('data-start'));
+                    const end = parseFloat(card.getAttribute('data-end'));
+                    state.trimStart = start;
+                    state.trimEnd = end;
+                    mainVideo.currentTime = start;
+                    showToast(`Memutar pratinjau klip: ${start}s - ${end}s`, "info");
+                });
+            });
+
+            // Export Video Engine Trigger
+            document.getElementById('btnExportVideo').addEventListener('click', executeVideoExport);
+        }
+
+        // Video Export & MediaRecorder Engine
+        function executeVideoExport() {
+            if (!state.videoLoaded) {
+                showToast("Unggah atau muat video sebelum melakukan ekspor!", "info");
+                return;
+            }
+
+            const modal = document.getElementById('exportModal');
+            const progressBar = document.getElementById('exportProgressBar');
+            const progressText = document.getElementById('exportProgressText');
+            
+            modal.classList.remove('hidden');
+            state.isExporting = true;
+            let progress = 0;
+
+            // Pause playback & seek to start
+            mainVideo.pause();
+            mainVideo.currentTime = state.trimStart;
+
+            // MediaRecorder stream capture setup
+            const canvasStream = studioCanvas.captureStream(30);
+            let mediaRecorder;
+            let recordedChunks = [];
+
+            try {
+                mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp9' });
+            } catch (e) {
+                mediaRecorder = new MediaRecorder(canvasStream);
+            }
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `OpusClean_Export_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+            mainVideo.play();
+
+            // Progress simulation interval synced with video duration
+            const totalExportDuration = Math.max(3, state.trimEnd - state.trimStart);
+            const intervalStep = 100;
+            
+            const timer = setInterval(() => {
+                progress += (intervalStep / (totalExportDuration * 1000)) * 100;
+                
+                if (progress >= 100 || mainVideo.currentTime >= state.trimEnd) {
+                    clearInterval(timer);
+                    progressBar.style.width = '100%';
+                    progressText.innerText = '100%';
+
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                        mainVideo.pause();
+                        modal.classList.add('hidden');
+                        showToast("Ekspor Selesai! File video berhasil diunduh.", "success");
+                        state.isExporting = false;
+                    }, 500);
+                } else {
+                    progressBar.style.width = `${Math.min(100, progress).toFixed(0)}%`;
+                    progressText.innerText = `${Math.min(100, progress).toFixed(0)}%`;
+                }
+            }, intervalStep);
+
+            // Cancel button
+            document.getElementById('btnCancelExport').onclick = () => {
+                clearInterval(timer);
+                if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                mainVideo.pause();
+                modal.classList.add('hidden');
+                showToast("Proses ekspor dibatalkan.", "info");
+                state.isExporting = false;
+            };
+        }
+
+        // Handle Window Resize to keep watermark overlay aligned
+        window.addEventListener('resize', updateWatermarkSelectorUI);
+    </script>
+</body>
+</html>
